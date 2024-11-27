@@ -1696,7 +1696,15 @@ MonoBehaviour:
   maxSpeed: 2
   timeToReachMaxSpeed: 0.1
   timeToDecelerate: 0.1
+  jumpHeight: 50
   rbHere: {fileID: 1433354318}
+  jumpPower: 100
+  jumpingRn: 0
+  groundereRn: 0
+  apexHeight: 7
+  apexTime: 0.7
+  terminalVelocity: 50
+  coyoteTimeValue: 3
 --- !u!4 &1433354315
 Transform:
   m_ObjectHideFlags: 0
@@ -1743,7 +1751,7 @@ Rigidbody2D:
   m_Mass: 1
   m_LinearDrag: 1
   m_AngularDrag: 0
-  m_GravityScale: 1
+  m_GravityScale: 0
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
