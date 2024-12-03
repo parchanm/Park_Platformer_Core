@@ -5,15 +5,15 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    public float maxSpeed = 4;
     FacingDirection lastDirection;
+
+    //horizontal movement
+    public float maxSpeed = 4;
     public float timeToReachMaxSpeed = 2.5f;
     private float acceleration = 2;
     public float timeToDecelerate = 2.5f;
     private float deceleration = 2;
     private float currentSpeed = 0;
-    //private float currentJump = 0;
-
     public float jumpHeight = 50;
 
     private Vector2 currentVelocity = Vector2.zero;
@@ -21,15 +21,15 @@ public class PlayerController : MonoBehaviour
     public Rigidbody2D rbHere;
 
     //week10 ->
-    //public float gravity = 10;
+    //vertical movement
     public float jumpPower = 10;
     public bool jumpingRn = false;
     public bool groundereRn = false;
 
-    //Josh's help
+    //Josh's help with vertical movement math stuff
     public float apexHeight = 7;
     public float apexTime = 0.7f;
-    private float gravity; //start putting continuously changing variables in private (used for calculation)
+    private float gravity; //note: start putting continuously changing variables in private (used for calculation)
     private float jumpVelocity;
     private float initialJumpSpeed;
     public float terminalVelocity = 5;
@@ -38,97 +38,164 @@ public class PlayerController : MonoBehaviour
     public float coyoteTimeValue = 1f;
     private float timerCounter = 0;
 
+    //inclass week12
+    public int health = 10;
+
+    //final task1 horizontal dash
+    public float dashPower = 10f;
+    private bool dashingRn = false;
+    private float dashDuration = 0.3f;
+    private float dashTimerCounter = 1.3f;
+
+    //final task2 variable jump height
+    public float maxJumpTimeValue = 0.5f;
+    private float jumpTimerCounter = 0f;
+    private bool canJump = true;
+
+    //final task3 powerup
+    private bool powerUpActivated = false;
+    private float powerUpTimerCounter = 0f;
+    private float originalMaxSpeed;
+    private float originalApexHeight;
+
+    public SpriteRenderer spriteHere;
+    private Color originalColor;
 
     public enum FacingDirection
     {
         left, right
     }
 
-    // Start is called before the first frame update
+    public enum CharacterState
+    {
+        idle, walk, jump, die
+    }
+    public CharacterState currentCharacterState = CharacterState.idle;
+    public CharacterState previousCharacterState = CharacterState.die;
+
     void Start()
     {
+        //horizontal movement formula
         acceleration = maxSpeed / timeToReachMaxSpeed;
         deceleration = maxSpeed / timeToDecelerate;
 
-        //josh again && slate
+        //josh again && slate (for vertical movement)
         gravity = -2 * apexHeight / Mathf.Pow(apexTime, 2);
         jumpVelocity = 2 * apexHeight / apexTime;
         initialJumpSpeed = jumpVelocity; // don't know why this is needed
+
+        originalColor = spriteHere.color; //save original color
     }
 
-    // Update is called once per frame
     void Update()
     {
         //The input from the player needs to be determined and then passed in the to the MovementUpdate which should
         //manage the actual movement of the character.
 
-        //Vector2 playerInput = new Vector2(Input.GetAxisRaw("Horizontal"), 0);
-        //MovementUpdate(playerInput);
-        Debug.DrawLine(transform.position, Vector2.down, Color.red);
+        IsWalking();
 
+        //week12 in class
+        previousCharacterState = currentCharacterState;
+
+        switch (currentCharacterState)
+        {
+            case CharacterState.die:
+                // do nothing
+                break;
+            case CharacterState.jump:
+
+                if (IsGrounded())
+                {
+                    //We know we need to make a transition because we're not grounded anymore
+                    if (IsWalking())
+                    {
+                        currentCharacterState = CharacterState.walk;
+                    }
+                    else
+                    {
+                        currentCharacterState = CharacterState.idle;
+                    }
+                }
+
+                break;
+            case CharacterState.walk:
+                if (!IsWalking())
+                {
+                    currentCharacterState = CharacterState.idle;
+                }
+                //Are we jumping?
+                if (!IsGrounded())
+                {
+                    currentCharacterState = CharacterState.jump;
+                }
+                break;
+            case CharacterState.idle:
+                //Are we walking?
+                if (IsWalking())
+                {
+                    currentCharacterState = CharacterState.walk;
+                }
+                //Are we jumping?
+                if (!IsGrounded())
+                {
+                    currentCharacterState = CharacterState.jump;
+                }
+
+                break;
+        }
+        if (IsDead()) //player is dead, play death animation
+        {
+            currentCharacterState = CharacterState.die;
+        }
+
+        if (Input.GetKeyUp(KeyCode.Space) && jumpingRn) //I put this so that it can check it constantly every frame (was afraid fixed update causing issue) cuz getkeyup registers only once
+        { //stop the jump when spacebar is released
+            jumpingRn = false;
+            jumpTimerCounter = maxJumpTimeValue; //set to max jump and stop jumping higher
+        }
+
+        if (powerUpActivated) //power up activated
+        {
+            powerUpTimerCounter -= Time.deltaTime; //start counting the timer
+
+            if (powerUpTimerCounter <= 0) //time's over
+            {
+                //return all the bonus values to original
+                maxSpeed = originalMaxSpeed;
+                jumpHeight = originalApexHeight;
+                spriteHere.color = originalColor;
+                health = 10;
+                powerUpActivated = false;
+            }
+        }
+    }
+    private void FixedUpdate()
+    {
+        //gravity
         Gravity();
-        Debug.Log(timerCounter);
-        //IsGrounded();
-        //if (Input.GetKey(KeyCode.Space) && IsGrounded() && !jumpingRn) //doesn't work with getkeydown??? why???
-        //{
-        //    jumpVelocity = initialJumpSpeed;
-        //    jumpingRn = true;
-        //    Debug.Log("jumped");
-        //}
 
-        //coyote time
+        //coyote time && variable jump (josh's help)
         if (IsGrounded() || timerCounter > 0f) //grounded or timer bigger than 0 allows player to jump
         {
-            if (Input.GetKey(KeyCode.Space) && !jumpingRn) //doesn't work with getkeydown??? why???
+            if (Input.GetKey(KeyCode.Space) && !jumpingRn && canJump)
             {
-                jumpVelocity = initialJumpSpeed;
+                //jumpVelocity = initialJumpSpeed;
                 jumpingRn = true;
-                Debug.Log("jumped");
+                jumpTimerCounter = 0f;
+                jumpVelocity = initialJumpSpeed;
+
+                Debug.Log("jumping");
             }
         }
 
-        Vector2 playerInput = new Vector2(Input.GetAxisRaw("Horizontal"), 0); //moved to fixed update since it's physics based
-        MovementUpdate(playerInput);
+        //dashing
+        DashRn();
 
-        IsWalking();
-        //IsGrounded();
+        //horizontal movement
+        Vector2 playerInput = new Vector2(Input.GetAxisRaw("Horizontal"), 0);
+        MovementUpdate(playerInput);
     }
 
-    //private void FixedUpdate()
-    //{
-    //    //gravity
-    //    //rbHere.AddForce(transform.up * -gravity);
-
-    //    //groundereRn = IsGrounded();
-    //    //rbHere.velocity += new Vector2(0, gravity * Time.deltaTime);//@@
-    //    //if (Input.GetKeyDown(KeyCode.Space) && groundereRn)
-    //    //{
-    //    //    rbHere.velocity = new Vector2(rbHere.velocity.x, jumpPower * Time.deltaTime);
-    //    //    jumpingRn = true;
-    //    //    Debug.Log("you jumped");
-    //    //}
-    //    //if (jumpingRn && rbHere.velocity.y <= 0)
-    //    //{
-    //    //    jumpingRn = false;
-    //    //}
-
-    //    //Gravity();
-
-    //    Vector2 playerInput = new Vector2(Input.GetAxisRaw("Horizontal"), 0); //moved to fixed update since it's physics based
-    //    MovementUpdate(playerInput);
-
-    //    //if (Input.GetKeyDown(KeyCode.Space) && IsGrounded())
-    //    //{
-    //    //    jumpVelocity = startedJumpVelocity;
-    //    //    Debug.Log("jumped");
-    //    //}
-
-    //    IsWalking();
-    //    IsGrounded();
-    //}
-
-    //acceleration
-    //velocity
 
     private void MovementUpdate(Vector2 playerInput)
     {
@@ -137,7 +204,7 @@ public class PlayerController : MonoBehaviour
             currentSpeed += playerInput.x * acceleration * Time.deltaTime; //detect input and accelerate (-1, 1)
         }
         
-        if (playerInput.x == 0)
+        if (playerInput.x == 0) //if there's no input, slow the speed (decelerate)
         {
             if (currentSpeed > 0)
             {
@@ -148,18 +215,13 @@ public class PlayerController : MonoBehaviour
                 currentSpeed += deceleration * Time.deltaTime;
             }
         }
-
-        //if (Input.GetKeyDown(KeyCode.Space))
-        //{
-        //    rbHere.AddForce(transform.up * jumpHeight);
-        //    Debug.Log("you jumped");
-        //}
-
-        rbHere.velocity = new Vector2(currentSpeed, jumpVelocity); //@@@@@@@@@@@gravity and jump here
+        //apply horizontal, vertical physics
+        rbHere.velocity = new Vector2(currentSpeed, jumpVelocity);
     }
 
     public bool IsWalking()
     {
+        //detect player horizontal input and return true/false
         Vector2 playerInput = new Vector2(Input.GetAxisRaw("Horizontal"), 0); 
         if (playerInput.x != 0)
         {
@@ -172,39 +234,16 @@ public class PlayerController : MonoBehaviour
     }
     public bool IsGrounded()
     {
-        //trials and errors
-        //Physics2D.BoxCast(transform.position, new Vector2(0, 0.01f), 0, Vector2.down); this won't work..
-        //RaycastHit2D don't know how to use this
-        //return Physics2D.Raycast(transform.position, Vector2.down, 0.1f);
-        //return true;
-
-        /* //blocked for coyote time
-        if (Physics2D.Raycast(transform.position, Vector2.down, 0.7f, LayerMask.GetMask("Ground"))) //ayman's help
-        {
-            timerCounter = coyoteTimer;//grounded to reset timer
-            return true;
-        }
-        else
-        {
-            if (timerCounter > 0)
-            {
-                timerCounter -= Time.deltaTime; //start decreasing the counter when they're not grounded
-                return true; // coyote time (stay in the air for a sec)
-            }
-        }
-        return false; //coyote time expired and return false
-        */
-
-        //return Physics2D.Raycast(transform.position, Vector2.down, 0.55f, LayerMask.GetMask("Ground"));
-
-
         //updated gounded for coyote time. Josh's help pt.2 
-        bool groundedRn = Physics2D.Raycast(transform.position, Vector2.down, 0.7f, LayerMask.GetMask("Ground")); //ayman's help
-        //raycast is true/false check
+        //bool groundedRn = Physics2D.Raycast(transform.position, Vector2.down, 0.7f, LayerMask.GetMask("Ground")); //ayman's help
+        bool groundedRn = Physics2D.BoxCast(new Vector2(transform.position.x, transform.position.y - 0.5f), new Vector2(0.7f, 0.4f), 0f, Vector2.down, 0f, LayerMask.GetMask("Ground"));
+
+        //raycast is true/false check (grounded check)
 
         if (groundedRn) //currently on the ground
         {
             timerCounter = coyoteTimeValue; //reset the timer
+            canJump = true;
             return true;
         }
         else //not on the ground
@@ -213,14 +252,14 @@ public class PlayerController : MonoBehaviour
             {
                 timerCounter -= Time.deltaTime;
             }
-
+            canJump = false;
             return false;
         }
     }
 
     public FacingDirection GetFacingDirection()
     {
-        //Vector2 playerInput = new Vector2(Input.GetAxisRaw("Horizontal"), 0); //can't use vector values
+        //ayman's help (get player horizontal input and change the player's FacingDirection)
         float playerInput = Input.GetAxisRaw("Horizontal");
 
         if (playerInput > 0)
@@ -236,16 +275,26 @@ public class PlayerController : MonoBehaviour
 
     private void Gravity() //josh's help
     {
-        //if (!IsGrounded()) //when player's not grounded apply gravity
-        //{
-        //    rbHere.velocity += Vector2.up * gravity * Time.deltaTime;
-        //}
-
-        //jumpvelocity = rigidbody vector y
         jumpVelocity += gravity * Time.deltaTime; //add gravity to jumpvelocity
         if (!IsGrounded()) //apply gravity when player's not grounded
         {
             jumpVelocity += gravity * Time.deltaTime;
+
+            //variable jump (josh's help)
+            if (jumpingRn)
+            {
+                if (jumpTimerCounter < maxJumpTimeValue)
+                {
+                    jumpVelocity = initialJumpSpeed + (gravity * jumpTimerCounter); //keep increasing the height (josh's help)
+                    //note: gravity * jumptimercounter to apply gravity with jumpspeed. without gravity, the vertical movement feels weirdly light
+                    jumpTimerCounter += Time.deltaTime; //increase the counter while holding space
+                }
+            }
+
+            if (Input.GetKey(KeyCode.S)) //add 2x gravity when s key is pressed
+            {
+                jumpVelocity += gravity * Time.deltaTime * 2f;
+            }
 
             if(jumpVelocity < -terminalVelocity) //max fall speed for task 2
             {
@@ -258,5 +307,68 @@ public class PlayerController : MonoBehaviour
             jumpVelocity = 0;
             jumpingRn = false;
         }
+    }
+
+    public bool IsDead() //in class exercise
+    {
+        return health <= 0;
+    }
+
+    public void OnDeathAnimationComplete() //in class exercise
+    {
+        gameObject.SetActive(false);
+    }
+
+    private void DashRn()
+    {
+        if (Input.GetKey(KeyCode.LeftShift) && !dashingRn)
+        {
+            //start dash when the player's not dashing/dashing is finished && shift key is pressed
+            dashingRn = true; //switch the bool
+            dashTimerCounter = dashDuration; //set the timer
+            float direction = Input.GetAxisRaw("Horizontal");
+
+            if (direction != 0)
+            {
+                currentSpeed = dashPower * direction; //apply dashpower to current speed
+                Debug.Log("dashing...");
+            }
+        }
+
+        if (dashingRn) //timer for dashing duration
+        {
+            //dash started! start decreasing the timer
+            dashTimerCounter -= Time.deltaTime;
+
+            if (dashTimerCounter <= 0) //counter reached 0, set the dashing to false
+            {
+                dashingRn = false;
+            }
+        }
+    }
+
+    public void ActivatePowerUp(float speedBonus, float jumpBonus, float dashBonus, float duration)
+    {
+        if (!powerUpActivated) //when power up's not activated, save original values
+        {
+            originalMaxSpeed = maxSpeed;
+            originalApexHeight = apexHeight;
+        }
+
+        //apply bonuses
+        maxSpeed *= speedBonus;
+        apexHeight *= jumpBonus;
+        dashPower += dashBonus;
+        health = 99;
+
+        powerUpTimerCounter = duration;
+        powerUpActivated = true;
+        //turn the color to yellow
+        spriteHere.color = Color.yellow;
+    }
+
+    public void DeathShroomTouch(int damage)
+    {
+        health -= damage;
     }
 }
