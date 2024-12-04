@@ -194,6 +194,7 @@ public class PlayerController : MonoBehaviour
         //horizontal movement
         Vector2 playerInput = new Vector2(Input.GetAxisRaw("Horizontal"), 0);
         MovementUpdate(playerInput);
+        Debug.Log(playerInput);
     }
 
 
@@ -208,12 +209,31 @@ public class PlayerController : MonoBehaviour
         {
             if (currentSpeed > 0)
             {
-                currentSpeed -= deceleration * Time.deltaTime;
+                if((currentSpeed - deceleration * Time.deltaTime) < 0) //prof keely and evan's help
+                    //if subtracting deceleration goes over the zero, just set the current speed to 0. Else, keep decelerating
+                {
+                    currentSpeed = 0f;
+                }
+                else
+                {
+                    currentSpeed -= deceleration * Time.deltaTime;
+                }
+                //Debug.Log("decreasing");
             }
             if (currentSpeed < 0)
             {
-                currentSpeed += deceleration * Time.deltaTime;
+                if((currentSpeed + deceleration * Time.deltaTime) > 0)
+                {
+                    currentSpeed = 0f;
+                }
+                else
+                {
+                    currentSpeed += deceleration * Time.deltaTime;
+                }
+                //Debug.Log("increasing");
             }
+            //if (Mathf.Abs(currentSpeed) < 0.1f)
+            //    currentSpeed = 0f;
         }
         //apply horizontal, vertical physics
         rbHere.velocity = new Vector2(currentSpeed, jumpVelocity);
@@ -236,7 +256,7 @@ public class PlayerController : MonoBehaviour
     {
         //updated gounded for coyote time. Josh's help pt.2 
         //bool groundedRn = Physics2D.Raycast(transform.position, Vector2.down, 0.7f, LayerMask.GetMask("Ground")); //ayman's help
-        bool groundedRn = Physics2D.BoxCast(new Vector2(transform.position.x, transform.position.y - 0.5f), new Vector2(0.7f, 0.4f), 0f, Vector2.down, 0f, LayerMask.GetMask("Ground"));
+        bool groundedRn = Physics2D.BoxCast(new Vector2(transform.position.x, transform.position.y - 0.6f), new Vector2(0.7f, 0.2f), 0f, Vector2.down, 0f, LayerMask.GetMask("Ground"));
 
         //raycast is true/false check (grounded check)
 
